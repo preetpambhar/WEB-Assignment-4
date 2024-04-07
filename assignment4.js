@@ -33,6 +33,33 @@ const userSchema = new mongoose.Schema({
 
 const User = mongoose.model("User", userSchema);
 
+// Cart Schema and Model
+const cartSchema = new mongoose.Schema({
+  product_id: { type: mongoose.Schema.Types.ObjectId, ref: "Product" },
+  quantity: Number,
+  user_id: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+});
+
+const Cart = mongoose.model("Cart", cartSchema);
+
+// Order Schema and Model
+const orderSchema = new mongoose.Schema({
+  product_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Product",
+    required: true,
+  },
+  quantity: { type: Number, required: true },
+  user_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
+  },
+  order_date: { type: Date, default: Date.now },
+});
+
+const Order = mongoose.model("Order", orderSchema);
+
 // Product routes
 // Create a new product
 app.post("/products", async (req, res) => {
@@ -156,6 +183,132 @@ app.delete("/users/:id", async (req, res) => {
     res.send("User deleted successfully");
   } catch (error) {
     res.status(500).send("Error deleting user");
+  }
+});
+
+// Create a new cart
+app.post("/carts", async (req, res) => {
+  try {
+    const { product_id, quantity, user_id } = req.body;
+    const cart = new Cart({ product_id, quantity, user_id });
+    await cart.save();
+    res.send("Cart created successfully");
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Fetch all carts
+app.get("/carts", async (req, res) => {
+  try {
+    const carts = await Cart.find();
+    res.json(carts);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+// Update cart by ID
+app.put("/carts/:id", async (req, res) => {
+  try {
+    const updatedCart = await Cart.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+    });
+    if (!updatedCart) {
+      res.status(404).send("Cart not found");
+      return;
+    }
+    res.json(updatedCart);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete cart by ID
+app.delete("/carts/:id", async (req, res) => {
+  try {
+    await Cart.findByIdAndDelete(req.params.id);
+    res.send("Cart deleted successfully");
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Create a new order
+app.post("/orders", async (req, res) => {
+  try {
+    const { product_id, quantity, user_id } = req.body;
+
+    // Create a new order
+    const order = new Order({ product_id, quantity, user_id });
+    await order.save();
+
+    // Remove the corresponding product from the cart
+    await Cart.deleteOne({ product_id, user_id });
+
+    // Send response with the ID of the newly created order
+    res.status(201).json({
+      message: "Order created successfully",
+      order_id: order._id, // Access the ID of the newly created order
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Fetch order by ID
+app.get("/orders/:id", async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id);
+    if (!order) {
+      res.status(404).send("Order not found");
+      return;
+    }
+    res.json(order);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Fetch all orders by user ID
+app.get("/orders/user/:user_id", async (req, res) => {
+  try {
+    const { user_id } = req.params;
+    const orders = await Order.find({ user_id });
+    res.json(orders);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update order by ID
+app.put("/orders/:id", async (req, res) => {
+  try {
+    const updatedOrder = await Order.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true }
+    );
+    if (!updatedOrder) {
+      res.status(404).send("Order not found");
+      return;
+    }
+    res.json(updatedOrder);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete order by ID
+app.delete("/orders/:id", async (req, res) => {
+  try {
+    const deletedOrder = await Order.findByIdAndDelete(req.params.id);
+    if (!deletedOrder) {
+      res.status(404).send("Order not found");
+      return;
+    }
+    res.send("Order deleted successfully");
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 
