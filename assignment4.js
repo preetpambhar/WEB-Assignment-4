@@ -60,6 +60,17 @@ const orderSchema = new mongoose.Schema({
 
 const Order = mongoose.model("Order", orderSchema);
 
+// Comment Schema and Model
+const commentSchema = new mongoose.Schema({
+  product_id: { type: mongoose.Schema.Types.ObjectId, ref: "Product" },
+  user_id: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  rating: Number,
+  images: [String],
+  comment: String,
+});
+
+const Comment = mongoose.model("Comment", commentSchema);
+
 // Product routes
 // Create a new product
 app.post("/products", async (req, res) => {
@@ -307,6 +318,80 @@ app.delete("/orders/:id", async (req, res) => {
       return;
     }
     res.send("Order deleted successfully");
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get all comments
+app.get("/comments", async (req, res) => {
+  try {
+    const comments = await Comment.find();
+    res.json(comments);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get comment by ID
+app.get("/comments/:id", async (req, res) => {
+  try {
+    const comment = await Comment.findById(req.params.id);
+    if (!comment) {
+      res.status(404).send("Comment not found");
+      return;
+    }
+    res.json(comment);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Create a new comment
+app.post("/comments", async (req, res) => {
+  try {
+    const { product_id, user_id, rating, images, comment } = req.body;
+    const newComment = new Comment({
+      product_id,
+      user_id,
+      rating,
+      images,
+      comment,
+    });
+    await newComment.save();
+    res.status(201).send("Comment created successfully");
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update comment by ID
+app.put("/comments/:id", async (req, res) => {
+  try {
+    const updatedComment = await Comment.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true }
+    );
+    if (!updatedComment) {
+      res.status(404).send("Comment not found");
+      return;
+    }
+    res.json(updatedComment);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete comment by ID
+app.delete("/comments/:id", async (req, res) => {
+  try {
+    const deletedComment = await Comment.findByIdAndDelete(req.params.id);
+    if (!deletedComment) {
+      res.status(404).send("Comment not found");
+      return;
+    }
+    res.send("Comment deleted successfully");
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
